@@ -10,10 +10,7 @@ class Packet():
     def __init__(self, **kw):
         self.fields = OrderedDict(self.__class__.fields)
         for k,v in kw.items():
-            if callable(v):
-                self.fields[k] = v(self.fields[k])
-            else:
-                self.fields[k] = v
+            self.fields[k] = v(self.fields[k]) if callable(v) else v
     def __str__(self):
         return "".join(map(str, self.fields.values()))
 
@@ -22,28 +19,20 @@ def NTStamp(Time):
     return struct.pack("Q", NtStamp + (Time.microsecond * 10))
 
 def longueur(payload):
-    length = struct.pack(">i", len(''.join(payload)))
-    return length
+    return struct.pack(">i", len(''.join(payload)))
 
 def GrabMessageID(data):
-    Messageid = data[28:36]
-    return Messageid
+    return data[28:36]
 
 def GrabCreditRequested(data):
     CreditsRequested = data[18:20]
-    if CreditsRequested == "\x00\x00":
-       CreditsRequested =  "\x01\x00"
-    else:
-       CreditsRequested = data[18:20]
-    return CreditsRequested
+    return "\x01\x00" if CreditsRequested == "\x00\x00" else data[18:20]
 
 def GrabCreditCharged(data):
-    CreditCharged = data[10:12]
-    return CreditCharged
+    return data[10:12]
 
 def GrabSessionID(data):
-    SessionID = data[44:52]
-    return SessionID
+    return data[44:52]
 
 ##################################################################################
 class SMBv2Header(Packet):

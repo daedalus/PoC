@@ -13,10 +13,7 @@ class Packet():
     def __init__(self, **kw):
         self.fields = OrderedDict(self.__class__.fields)
         for k,v in kw.items():
-            if callable(v):
-                self.fields[k] = v(self.fields[k])
-            else:
-                self.fields[k] = v
+            self.fields[k] = v(self.fields[k]) if callable(v) else v
     def __str__(self):
         return "".join(map(str, self.fields.values()))
 
@@ -265,35 +262,26 @@ class SMBSession2(Packet):
         ##Complete Buff Len
         self.fields["bcc1"] = struct.pack("<h", len(CompletePacketLen)-27)
 
-	###### ASN Stuff
-        if len(SecurityBlobLen) > 255:
-	   #self.fields["ApplicationHeaderTagLenOfLen"] = "\x82" --> //BUG not using this calc since it's our trigger.
-	   #self.fields["ApplicationHeaderLen"] = struct.pack(">H", len(SecurityBlobLen)-4) #-4 from secbloblen
-           pass #Not calculating this one to trigger the bug.
+        if len(SecurityBlobLen) > 263:
+            self.fields["AsnSecMechLenOfLen"] = "\x82"
+            self.fields["AsnSecMechLen"] = struct.pack(">H", len(SecurityBlobLen)-8) #-8 from secbloblen
         else:
-           #self.fields["ApplicationHeaderTagLenOfLen"] = "\x81" --> //BUG not using this calc since it's our trigger.
-	   #self.fields["ApplicationHeaderLen"] = struct.pack(">B", len(SecurityBlobLen)-3)
-           pass #Not calculating this one to trigger the bug.
-        if len(SecurityBlobLen)-8 > 255:
-           self.fields["AsnSecMechLenOfLen"] = "\x82"
-	   self.fields["AsnSecMechLen"] = struct.pack(">H", len(SecurityBlobLen)-8) #-8 from secbloblen
-        else:
-           self.fields["AsnSecMechLenOfLen"] = "\x81"
-	   self.fields["AsnSecMechLen"] = struct.pack(">B", len(SecurityBlobLen)-6)
+            self.fields["AsnSecMechLenOfLen"] = "\x81"
+            self.fields["AsnSecMechLen"] = struct.pack(">B", len(SecurityBlobLen)-6)
 
-        if len(SecurityBlobLen)-12 > 255:
-           self.fields["ChoosedTagLenOfLen"] = "\x82"
-           self.fields["ChoosedTagLen"] = struct.pack(">H", len(SecurityBlobLen)-12) #-12 from secbloblen
+        if len(SecurityBlobLen) > 267:
+            self.fields["ChoosedTagLenOfLen"] = "\x82"
+            self.fields["ChoosedTagLen"] = struct.pack(">H", len(SecurityBlobLen)-12) #-12 from secbloblen
         else:
-           self.fields["ChoosedTagLenOfLen"] = "\x81"
-           self.fields["ChoosedTagLen"] = struct.pack(">B", len(SecurityBlobLen)-9)
+            self.fields["ChoosedTagLenOfLen"] = "\x81"
+            self.fields["ChoosedTagLen"] = struct.pack(">B", len(SecurityBlobLen)-9)
 
-        if len(SecurityBlobLen)-16 > 255:
-           self.fields["ChoosedTag1StrLenOfLen"] = "\x82"
-           self.fields["ChoosedTag1StrLen"] = struct.pack(">H", len(SecurityBlobLen)-16) #-16 from secbloblen
+        if len(SecurityBlobLen) > 271:
+            self.fields["ChoosedTag1StrLenOfLen"] = "\x82"
+            self.fields["ChoosedTag1StrLen"] = struct.pack(">H", len(SecurityBlobLen)-16) #-16 from secbloblen
         else:
-           self.fields["ChoosedTag1StrLenOfLen"] = "\x81"
-           self.fields["ChoosedTag1StrLen"] = struct.pack(">B", len(SecurityBlobLen)-12)
+            self.fields["ChoosedTag1StrLenOfLen"] = "\x81"
+            self.fields["ChoosedTag1StrLen"] = struct.pack(">B", len(SecurityBlobLen)-12)
 
         ##### Username Offset Calculation..######
         self.fields["NLMPAuthMsgNtUserNameBuffOffset"] = struct.pack("<i", len(CalculateUserOffset))
@@ -326,8 +314,7 @@ class SMBSession2(Packet):
 ######################################################################################################
 
 def longueur(payload):
-    length = struct.pack(">i", len(''.join(payload)))
-    return length
+    return struct.pack(">i", len(''.join(payload)))
 
 def SendCustomNego(Message):
     h = SMBHeader(cmd="\x72",flag1="\x18", flag2="\x53\xc8")
